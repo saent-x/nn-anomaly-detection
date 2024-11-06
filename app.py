@@ -114,7 +114,7 @@ def TrainModel():
 
 
 def main():
-    pass
+    TrainModel()
 
 
 
