@@ -23,7 +23,7 @@ def ConvertDataframeToDataset(df):
 
     labels = df.pop('attack')
     ds = tf.data.Dataset.from_tensor_slices((dict(df), labels))
-    ds = ds.shuffle(buffer_size=len(df))
+    ds = ds.shuffle(buffer_size=10000)
 
     return ds
 
