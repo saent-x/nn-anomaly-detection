@@ -1,10 +1,10 @@
 ---
-title: {{title}}
-emoji: {{emoji}}
-colorFrom: {{colorFrom}}
-colorTo: {{colorTo}}
-sdk: {{sdk}}
-sdk_version: "{{sdkVersion}}"
+title: nn-anomaly-detection
+emoji: 🔭
+colorFrom: gray
+colorTo: purple
+sdk: streamlit
+sdk_version: 1.39
 app_file: app.py
-pinned: false
+pinned: true
 ---
