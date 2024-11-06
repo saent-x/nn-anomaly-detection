@@ -107,7 +107,7 @@ def TrainModel():
     model = keras.Model(inputs = features, outputs = output)
     model.compile("adam", "binary_crossentropy", metrics=["accuracy"])
 
-    model.fit(train_ds, epochs=5, validation_data=val_ds) #TODO increase epochs count
+    model.fit(train_ds, epochs=30, validation_data=val_ds) #TODO increase epochs count
 
     # save model
     model.save("model.keras")
