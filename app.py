@@ -125,7 +125,7 @@ def prepare_train_and_test_ds(filepath):
 
 
 def train_model():
-    train_ds, val_ds, all_features, all_inputs = prepare_train_and_test_ds("data/simple.csv")
+    train_ds, val_ds, all_features, all_inputs = prepare_train_and_test_ds("data/full_processed_can_data.csv")
 
     x = layers.Dense(32, activation="relu")(all_features)
     x = layers.Dropout(0.5)(x)
