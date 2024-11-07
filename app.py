@@ -1,3 +1,7 @@
+import os
+
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 import pandas as pd
 import keras
 import tensorflow as tf
