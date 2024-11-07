@@ -89,7 +89,7 @@ st.markdown(
 )
 
 st.title("Model Training and Evaluation Results")
-st.write("This app displays the results of your model training and evaluation in an organized manner.")
+st.write("This app displays the results of model training and evaluation.")
 
 # Find available plot folders
 training_dirs, evaluation_dirs = find_plot_folders()
