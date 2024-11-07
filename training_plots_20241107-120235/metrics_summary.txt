@@ -1,0 +1,7 @@
+final_train_accuracy: 0.6279
+final_val_accuracy: 0.7273
+final_train_loss: 0.6558
+final_val_loss: 0.5116
+best_val_accuracy: 0.7273
+best_val_loss: 0.5116
+epochs_trained: 30.0000
