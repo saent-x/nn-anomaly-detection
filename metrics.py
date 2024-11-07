@@ -7,21 +7,14 @@ import datetime
 
 
 def plot_training_history(history, save_dir="training_plots"):
-    """
-    Plot and save training metrics and learning curves
-    """
-    # Create directory for saving plots
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     save_dir = f"{save_dir}_{timestamp}"
     os.makedirs(save_dir, exist_ok=True)
 
-    # Set style for better visualization
-    plt.style.use('seaborn')
+    plt.style.use('seaborn-v0_8-dark-palette')
 
-    # Plot training & validation accuracy
     plt.figure(figsize=(12, 4))
 
-    # Plot accuracy
     plt.subplot(1, 2, 1)
     plt.plot(history.history['accuracy'], label='Training Accuracy')
     plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
@@ -30,7 +23,6 @@ def plot_training_history(history, save_dir="training_plots"):
     plt.ylabel('Accuracy')
     plt.legend()
 
-    # Plot loss
     plt.subplot(1, 2, 2)
     plt.plot(history.history['loss'], label='Training Loss')
     plt.plot(history.history['val_loss'], label='Validation Loss')
@@ -43,7 +35,6 @@ def plot_training_history(history, save_dir="training_plots"):
     plt.savefig(f"{save_dir}/training_history.png")
     plt.close()
 
-    # Create training metrics summary
     metrics_summary = {
         'final_train_accuracy': history.history['accuracy'][-1],
         'final_val_accuracy': history.history['val_accuracy'][-1],
@@ -54,7 +45,6 @@ def plot_training_history(history, save_dir="training_plots"):
         'epochs_trained': len(history.history['accuracy'])
     }
 
-    # Save metrics summary
     with open(f"{save_dir}/metrics_summary.txt", 'w') as f:
         for metric, value in metrics_summary.items():
             f.write(f"{metric}: {value:.4f}\n")
@@ -63,25 +53,20 @@ def plot_training_history(history, save_dir="training_plots"):
 
 
 def evaluate_model_performance(model, test_ds, save_dir="evaluation_plots"):
-    """
-    Evaluate model performance and create visualization plots
-    """
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     save_dir = f"{save_dir}_{timestamp}"
     os.makedirs(save_dir, exist_ok=True)
 
-    # Get predictions
     y_pred_proba = model.predict(test_ds)
+    y_pred_proba = np.squeeze(y_pred_proba)  # Ensure y_pred_proba is 1D
     y_pred = (y_pred_proba > 0.5).astype(int)
 
-    # Get true labels
     y_true = np.concatenate([y for x, y in test_ds], axis=0)
+    y_true = np.squeeze(y_true)  # Ensure y_true is 1D
 
-    # Calculate ROC curve
     fpr, tpr, _ = roc_curve(y_true, y_pred_proba)
     roc_auc = auc(fpr, tpr)
 
-    # Plot ROC curve
     plt.figure(figsize=(8, 6))
     plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
     plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
@@ -94,7 +79,6 @@ def evaluate_model_performance(model, test_ds, save_dir="evaluation_plots"):
     plt.savefig(f"{save_dir}/roc_curve.png")
     plt.close()
 
-    # Create confusion matrix
     cm = confusion_matrix(y_true, y_pred)
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
@@ -104,7 +88,6 @@ def evaluate_model_performance(model, test_ds, save_dir="evaluation_plots"):
     plt.savefig(f"{save_dir}/confusion_matrix.png")
     plt.close()
 
-    # Generate and save classification report
     report = classification_report(y_true, y_pred)
     with open(f"{save_dir}/classification_report.txt", 'w') as f:
         f.write(report)
