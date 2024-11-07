@@ -16,6 +16,7 @@ def convert_dataframe_to_dataset(df):
     df = df.copy()
 
     labels = df.pop('attack')
+    labels = labels.values.reshape(-1, 1) # reshape to match model output dims
     ds = tf.data.Dataset.from_tensor_slices((dict(df), labels))
     ds = ds.shuffle(buffer_size=10000)
 
@@ -23,62 +24,58 @@ def convert_dataframe_to_dataset(df):
 
 
 def encode_numerical_feature(feature, name, dataset):
-    # Convert dataset to numpy for analysis
     feature_ds = dataset.map(lambda x, y: x[name])
     feature_values = np.array(list(feature_ds.as_numpy_iterator()))
-
-    # Analyze feature distribution
-    non_zero = feature_values[feature_values != 0]
+    
     zero_fraction = (feature_values == 0).mean()
     value_range = feature_values.max() - feature_values.min()
-
-    # Choose normalization strategy based on data characteristics
+    
     if name == 'time_interval':
         # Time intervals need special handling due to their small scale
         normalizer = layers.Normalization(axis=None)
         feature_ds = dataset.map(lambda x, y: x[name])
         feature_ds = feature_ds.map(lambda x: tf.expand_dims(x, -1))
         normalizer.adapt(feature_ds)
-
+        
     elif zero_fraction > 0.3:  # High number of zeros
         # Use sparse normalization
         normalizer = layers.Normalization(axis=None)
         # Add small epsilon to prevent division by zero
         feature_ds = dataset.map(lambda x, y: x[name])
-        feature_ds = feature_ds.map(lambda x: tf.expand_dims(x + 1e-6, -1))
+        feature_ds = feature_ds.map(lambda x: tf.expand_dims(tf.cast(x, tf.float32) + 1e-6, -1))
         normalizer.adapt(feature_ds)
-
+        
     elif value_range > 1000:  # Large value range
         # Use log normalization for wide-ranging values
         normalizer = layers.Normalization(axis=None)
         feature_ds = dataset.map(lambda x, y: x[name])
-        feature_ds = feature_ds.map(lambda x: tf.expand_dims(tf.math.log1p(x), -1))
+        feature_ds = feature_ds.map(lambda x: tf.expand_dims(tf.math.log1p(tf.cast(x, tf.float32)), -1))
         normalizer.adapt(feature_ds)
-
+        
     else:  # Standard case
         normalizer = layers.Normalization(axis=None)
         feature_ds = dataset.map(lambda x, y: x[name])
-        feature_ds = feature_ds.map(lambda x: tf.expand_dims(x, -1))
+        feature_ds = feature_ds.map(lambda x: tf.expand_dims(tf.cast(x, tf.float32), -1))
         normalizer.adapt(feature_ds)
+    
 
-    # Create preprocessing lambda layer based on the chosen strategy
     if name == 'time_interval':
         encoded_feature = tf.keras.layers.Lambda(
             lambda x: normalizer(tf.expand_dims(x, -1))
         )(feature)
     elif zero_fraction > 0.3:
         encoded_feature = tf.keras.layers.Lambda(
-            lambda x: normalizer(tf.expand_dims(x + 1e-6, -1))
+            lambda x: normalizer(tf.expand_dims(tf.cast(x, tf.float32) + 1e-6, -1))
         )(feature)
     elif value_range > 1000:
         encoded_feature = tf.keras.layers.Lambda(
-            lambda x: normalizer(tf.expand_dims(tf.math.log1p(x), -1))
+            lambda x: normalizer(tf.expand_dims(tf.math.log1p(tf.cast(x, tf.float32)), -1))
         )(feature)
     else:
         encoded_feature = tf.keras.layers.Lambda(
-            lambda x: normalizer(tf.expand_dims(x, -1))
+            lambda x: normalizer(tf.expand_dims(tf.cast(x, tf.float32), -1))
         )(feature)
-
+    
     return encoded_feature
 
 def prepare_train_and_test_ds(filepath):
@@ -128,7 +125,7 @@ def prepare_train_and_test_ds(filepath):
 
 
 def train_model():
-    train_ds, val_ds, all_features, all_inputs = prepare_train_and_test_ds("data/full_processed_can_data.csv")
+    train_ds, val_ds, all_features, all_inputs = prepare_train_and_test_ds("data/simple.csv")
 
     x = layers.Dense(32, activation="relu")(all_features)
     x = layers.Dropout(0.5)(x)
@@ -147,6 +144,7 @@ def train_model():
     val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
 
     print("started model training...")
+    
 
     history = model.fit(train_ds, epochs=30, validation_data=val_ds,
                         callbacks=[
