@@ -6,6 +6,7 @@ import pandas as pd
 import keras
 import tensorflow as tf
 import datetime
+import numpy as np
 
 from metrics import plot_training_history, evaluate_model_performance
 from keras import layers
@@ -20,19 +21,64 @@ def convert_dataframe_to_dataset(df):
 
     return ds
 
+
 def encode_numerical_feature(feature, name, dataset):
-    # Create a Normalization layer for our feature
-    normalizer = layers.Normalization()
-
-    # Prepare a Dataset that only yields our feature
+    # Convert dataset to numpy for analysis
     feature_ds = dataset.map(lambda x, y: x[name])
-    feature_ds = feature_ds.map(lambda x: tf.expand_dims(x, -1))
+    feature_values = np.array(list(feature_ds.as_numpy_iterator()))
 
-    # Learn the statistics of the data
-    normalizer.adapt(feature_ds)
+    # Analyze feature distribution
+    non_zero = feature_values[feature_values != 0]
+    zero_fraction = (feature_values == 0).mean()
+    value_range = feature_values.max() - feature_values.min()
 
-    # Normalize the input feature
-    encoded_feature = normalizer(feature)
+    # Choose normalization strategy based on data characteristics
+    if name == 'time_interval':
+        # Time intervals need special handling due to their small scale
+        normalizer = layers.Normalization(axis=None)
+        feature_ds = dataset.map(lambda x, y: x[name])
+        feature_ds = feature_ds.map(lambda x: tf.expand_dims(x, -1))
+        normalizer.adapt(feature_ds)
+
+    elif zero_fraction > 0.3:  # High number of zeros
+        # Use sparse normalization
+        normalizer = layers.Normalization(axis=None)
+        # Add small epsilon to prevent division by zero
+        feature_ds = dataset.map(lambda x, y: x[name])
+        feature_ds = feature_ds.map(lambda x: tf.expand_dims(x + 1e-6, -1))
+        normalizer.adapt(feature_ds)
+
+    elif value_range > 1000:  # Large value range
+        # Use log normalization for wide-ranging values
+        normalizer = layers.Normalization(axis=None)
+        feature_ds = dataset.map(lambda x, y: x[name])
+        feature_ds = feature_ds.map(lambda x: tf.expand_dims(tf.math.log1p(x), -1))
+        normalizer.adapt(feature_ds)
+
+    else:  # Standard case
+        normalizer = layers.Normalization(axis=None)
+        feature_ds = dataset.map(lambda x, y: x[name])
+        feature_ds = feature_ds.map(lambda x: tf.expand_dims(x, -1))
+        normalizer.adapt(feature_ds)
+
+    # Create preprocessing lambda layer based on the chosen strategy
+    if name == 'time_interval':
+        encoded_feature = tf.keras.layers.Lambda(
+            lambda x: normalizer(tf.expand_dims(x, -1))
+        )(feature)
+    elif zero_fraction > 0.3:
+        encoded_feature = tf.keras.layers.Lambda(
+            lambda x: normalizer(tf.expand_dims(x + 1e-6, -1))
+        )(feature)
+    elif value_range > 1000:
+        encoded_feature = tf.keras.layers.Lambda(
+            lambda x: normalizer(tf.expand_dims(tf.math.log1p(x), -1))
+        )(feature)
+    else:
+        encoded_feature = tf.keras.layers.Lambda(
+            lambda x: normalizer(tf.expand_dims(x, -1))
+        )(feature)
+
     return encoded_feature
 
 def prepare_train_and_test_ds(filepath):
@@ -63,6 +109,8 @@ def prepare_train_and_test_ds(filepath):
         'df8': keras.Input(shape=(1,), name='df8'),
         'time_interval': keras.Input(shape=(1,), name='time_interval')
     }
+
+    print("loaded all inputs...")
 
     encoded_features = []
     for name, input_tensor in all_inputs.items():
