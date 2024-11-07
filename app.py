@@ -1,24 +1,13 @@
-from xml.sax.handler import all_features
-
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import sklearn
-
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
-from math import sqrt
-
 import keras
-from keras.api.models import Sequential
-from keras.api.layers import Dense
-from keras import layers
-from keras.api.utils import to_categorical
-
 import tensorflow as tf
+import datetime
+
+from metrics import plot_training_history, evaluate_model_performance
+from keras import layers
 
 
-def ConvertDataframeToDataset(df):
+def convert_dataframe_to_dataset(df):
     df = df.copy()
 
     labels = df.pop('attack')
@@ -27,7 +16,7 @@ def ConvertDataframeToDataset(df):
 
     return ds
 
-def EncodeNumericalFeature(feature, name, dataset):
+def encode_numerical_feature(feature, name, dataset):
     # Create a Normalization layer for our feature
     normalizer = layers.Normalization()
 
@@ -42,7 +31,7 @@ def EncodeNumericalFeature(feature, name, dataset):
     encoded_feature = normalizer(feature)
     return encoded_feature
 
-def PrepareTrainAndTestDS(filepath):
+def prepare_train_and_test_ds(filepath):
     df = pd.read_csv(filepath)
 
     validation_df = df.sample(frac=0.2, random_state=1337)
@@ -53,68 +42,92 @@ def PrepareTrainAndTestDS(filepath):
         f"and {len(validation_df)} for validation"
     )
 
-    train_ds = ConvertDataframeToDataset(training_df)
-    val_ds = ConvertDataframeToDataset(validation_df)
+    train_ds = convert_dataframe_to_dataset(training_df)
+    val_ds = convert_dataframe_to_dataset(validation_df)
 
-    for x, y in train_ds.take(1):
-        print("Input:", x)
-        print("Target:", y)
+    all_inputs = {
+        'arbitration_id': keras.Input(shape=(1,), name='arbitration_id'),
+        'df1': keras.Input(shape=(1,), name='df1'),
+        'df2': keras.Input(shape=(1,), name='df2'),
+        'df3': keras.Input(shape=(1,), name='df3'),
+        'df4': keras.Input(shape=(1,), name='df4'),
+        'df5': keras.Input(shape=(1,), name='df5'),
+        'df6': keras.Input(shape=(1,), name='df6'),
+        'df7': keras.Input(shape=(1,), name='df7'),
+        'df8': keras.Input(shape=(1,), name='df8'),
+        'time_interval': keras.Input(shape=(1,), name='time_interval')
+    }
 
-    # batch datasets
+    encoded_features = []
+    for name, input_tensor in all_inputs.items():
+        encoded = encode_numerical_feature(input_tensor, name, train_ds)
+        encoded_features.append(encoded)
+
+    all_features = layers.concatenate(encoded_features)
+
     train_ds = train_ds.batch(32)
     val_ds = val_ds.batch(32)
 
-    # feature processing for numerical features
-    arbitration_id = keras.Input(shape=(1,), name='arbitration_id')
-    df1 = keras.Input(shape=(1,), name='df1')
-    df2 = keras.Input(shape=(1,), name='df2')
-    df3 = keras.Input(shape=(1,), name='df3')
-    df4 = keras.Input(shape=(1,), name='df4')
-    df5 = keras.Input(shape=(1,), name='df5')
-    df6 = keras.Input(shape=(1,), name='df6')
-    df7 = keras.Input(shape=(1,), name='df7')
-    df8 = keras.Input(shape=(1,), name='df8')
-    time_interval = keras.Input(shape=(1,), name='time_interval'),
-
-    arbitration_id_norm = EncodeNumericalFeature(arbitration_id, "arbitration_id", train_ds)
-    df1_norm = EncodeNumericalFeature(df1, "df1", train_ds)
-    df2_norm = EncodeNumericalFeature(df2, "df2", train_ds)
-    df3_norm = EncodeNumericalFeature(df3, "df3", train_ds)
-    df4_norm = EncodeNumericalFeature(df4, "df4", train_ds)
-    df5_norm = EncodeNumericalFeature(df5, "df5", train_ds)
-    df6_norm = EncodeNumericalFeature(df6, "df6", train_ds)
-    df7_norm = EncodeNumericalFeature(df7, "df7", train_ds)
-    df8_norm = EncodeNumericalFeature(df8, "df8", train_ds)
-    time_interval_norm = EncodeNumericalFeature(time_interval, "time_interval", train_ds)
-
-    features = layers.concatenate([
-        arbitration_id_norm,
-        df1_norm, df2_norm, df3_norm, df4_norm, df5_norm, df6_norm, df7_norm, df8_norm,
-        time_interval_norm
-    ])
-
-    return train_ds, val_ds, features
+    return train_ds, val_ds, all_features, all_inputs
 
 
-def TrainModel():
-    train_ds, val_ds, features = PrepareTrainAndTestDS("data/full_processed_can_data.csv")
+def train_model():
+    train_ds, val_ds, all_features, all_inputs = prepare_train_and_test_ds("data/full_processed_can_data.csv")
 
-    x = layers.Dense(32, activation="relu")(features)
+    x = layers.Dense(32, activation="relu")(all_features)
     x = layers.Dropout(0.5)(x)
 
     output = layers.Dense(1, activation="sigmoid")(x)
 
-    model = keras.Model(inputs = features, outputs = output)
+    model = keras.Model(inputs = all_inputs, outputs = output)
     model.compile("adam", "binary_crossentropy", metrics=["accuracy"])
 
-    model.fit(train_ds, epochs=30, validation_data=val_ds) #TODO increase epochs count
+    # Cache the datasets for better performance
+    train_ds = train_ds.cache()
+    val_ds = val_ds.cache()
 
-    # save model
-    model.save("model.keras")
+    # Add prefetch to optimize data pipeline
+    train_ds = train_ds.prefetch(tf.data.AUTOTUNE)
+    val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
+
+    history = model.fit(train_ds, epochs=30, validation_data=val_ds,
+                        callbacks=[
+                            keras.callbacks.EarlyStopping(
+                                monitor='val_loss',
+                                patience=5,
+                                restore_best_weights=True
+                            ),
+                            keras.callbacks.ReduceLROnPlateau(
+                                monitor='val_loss',
+                                factor=0.2,
+                                patience=3
+                            )
+                        ])
+
+    # Plot training history
+    training_metrics = plot_training_history(history)
+
+    # Evaluate model
+    evaluation_metrics = evaluate_model_performance(model, val_ds)
+
+    # Save model
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    model.save(f"model_{timestamp}.keras")
+
+    return model, training_metrics, evaluation_metrics
 
 
 def main():
-    TrainModel()
+    model, training_metrics, evaluation_metrics = train_model()
+
+    print("\nTraining Metrics:")
+    for metric, value in training_metrics.items():
+        print(f"{metric}: {value:.4f}")
+
+    print("\nEvaluation Metrics:")
+    print(f"ROC AUC: {evaluation_metrics['roc_auc']:.4f}")
+    print("\nClassification Report:")
+    print(evaluation_metrics['classification_report'])
 
 
 
