@@ -49,6 +49,8 @@ def prepare_train_and_test_ds(filepath):
     train_ds = convert_dataframe_to_dataset(training_df)
     val_ds = convert_dataframe_to_dataset(validation_df)
 
+    print("\ndone converting to DS...")
+
     all_inputs = {
         'arbitration_id': keras.Input(shape=(1,), name='arbitration_id'),
         'df1': keras.Input(shape=(1,), name='df1'),
@@ -68,6 +70,8 @@ def prepare_train_and_test_ds(filepath):
         encoded_features.append(encoded)
 
     all_features = layers.concatenate(encoded_features)
+
+    print("done encoding and concatenating...")
 
     train_ds = train_ds.batch(32)
     val_ds = val_ds.batch(32)
@@ -94,6 +98,8 @@ def train_model():
     train_ds = train_ds.prefetch(tf.data.AUTOTUNE)
     val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
 
+    print("started model training...")
+
     history = model.fit(train_ds, epochs=30, validation_data=val_ds,
                         callbacks=[
                             keras.callbacks.EarlyStopping(
@@ -108,15 +114,13 @@ def train_model():
                             )
                         ])
 
-    # Plot training history
     training_metrics = plot_training_history(history)
-
-    # Evaluate model
     evaluation_metrics = evaluate_model_performance(model, val_ds)
-
-    # Save model
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
     model.save(f"model_{timestamp}.keras")
+
+    print("done model training...")
 
     return model, training_metrics, evaluation_metrics
 
