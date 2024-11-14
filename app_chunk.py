@@ -8,9 +8,10 @@ from tensorflow.keras import layers
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, roc_auc_score
 
+
 def load_data_in_chunks(file_path, chunk_size=10000):
     """
-    Generator that reads data in chunks and yields preprocessed data batches.
+    Generator that reads data in chunks, performs upsampling, and yields preprocessed data batches.
     """
     scaler = StandardScaler()
 
@@ -22,12 +23,30 @@ def load_data_in_chunks(file_path, chunk_size=10000):
 
     def data_generator():
         for chunk in pd.read_csv(file_path, chunksize=chunk_size):
+            # Separate features and target
             X = chunk.drop('attack', axis=1)
             y = chunk['attack']
+
+            # Upsample the minority class within each chunk
+            class_counts = y.value_counts()
+            if class_counts.min() != class_counts.max():
+                df_majority = chunk[chunk['attack'] == class_counts.idxmax()]
+                df_minority = chunk[chunk['attack'] == class_counts.idxmin()]
+
+                # Upsample the minority class
+                df_minority_upsampled = df_minority.sample(class_counts.max(), replace=True, random_state=42)
+                chunk_balanced = pd.concat([df_majority, df_minority_upsampled], ignore_index=True)
+
+                # Re-separate the features and target after balancing
+                X = chunk_balanced.drop('attack', axis=1)
+                y = chunk_balanced['attack']
+
+            # Scale the features
             X = scaler.transform(X)  # Transform each chunk separately
             yield X, y
 
     return data_generator()
+
 
 def build_model(input_shape):
     """
