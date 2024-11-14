@@ -10,12 +10,31 @@ from sklearn.metrics import classification_report, roc_auc_score
 
 def load_and_preprocess_data(file_path):
     """
-    Load and preprocess the CAN dataset.
+    Load, balance (upsample), and preprocess the CAN dataset.
     """
     df = pd.read_csv(file_path)
 
     # Drop rows with missing values
     df = df.dropna()
+
+    # Check class distribution in the 'attack' column
+    class_counts = df['attack'].value_counts()
+    print("Class distribution before balancing:")
+    print(class_counts)
+
+    # Balance the dataset by upsampling the minority class
+    if class_counts.min() != class_counts.max():
+        # Separate majority and minority classes
+        df_majority = df[df['attack'] == class_counts.idxmax()]
+        df_minority = df[df['attack'] == class_counts.idxmin()]
+
+        # Upsample the minority class
+        df_minority_upsampled = df_minority.sample(class_counts.max(), replace=True, random_state=42)
+        df = pd.concat([df_majority, df_minority_upsampled], ignore_index=True)
+
+    # Verify new class distribution
+    print("Class distribution after balancing:")
+    print(df['attack'].value_counts())
 
     # Split features and target
     X = df.drop('attack', axis=1)
@@ -28,9 +47,9 @@ def load_and_preprocess_data(file_path):
     X_train = scaler.fit_transform(X_train)
     X_val = scaler.transform(X_val)
 
-    print(X_train)
-
     return X_train, X_val, y_train, y_val
+
+
 
 def build_model(_input_shape):
     """
@@ -100,13 +119,13 @@ def main():
     X_train, X_val, y_train, y_val = load_and_preprocess_data('data/simple.csv')
 
     # Build and train the model
-    _input_shape = X_train.shape[1:]
-    model = build_model(_input_shape)
-    train_model(model, X_train, y_train, X_val, y_val)
-
-    # Save the model
-    model.save('can_classifier.keras')
+    # _input_shape = X_train.shape[1:]
+    # model = build_model(_input_shape)
+    # train_model(model, X_train, y_train, X_val, y_val)
+    #
+    # # Save the model
+    # model.save('can_classifier.keras')
 
 if __name__ == '__main__':
-    predict()
-    #main()
+    #predict()
+    main()
