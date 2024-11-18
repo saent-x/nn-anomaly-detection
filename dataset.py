@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import torch
 import torchvision
 from numpy import ndarray
@@ -27,7 +29,7 @@ class CANDataset(Dataset):
         self.transform = transform
         
     
-    def __getitem__(self, index) -> [Tensor, Tensor]:
+    def __getitem__(self, index) -> Tuple[Tensor, Tensor]:
         return self.x[index], self.y[index]
         
     def __len__(self) -> None:
