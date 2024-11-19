@@ -90,7 +90,7 @@ def main():
                 process_can_message(message, session, scaler)
 
     except KeyboardInterrupt:
-        print("Stopped by user.")
+        print("Stopped abruptly by user.")
     finally:
         bus.shutdown()
 
