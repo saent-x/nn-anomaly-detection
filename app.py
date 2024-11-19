@@ -1,7 +1,7 @@
 import logging
 
-from can_trainer import CANDataTrainer
-from nn_config import NNConfig
+from src.core.can_trainer import CANDataTrainer
+from src.utils.nn_config import NNConfig
 
 
 def main():

@@ -6,10 +6,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from torch import nn, optim
-from nn_config import NNConfig
+from src.utils.nn_config import NNConfig
 from torch.utils.data import  DataLoader
 import numpy as np
-from can_dataset import CANDataset
+from src.core.can_dataset import CANDataset
 from nn import NeuralNet
 import torch.onnx
 
