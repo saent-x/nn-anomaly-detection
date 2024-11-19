@@ -22,7 +22,6 @@ class NeuralNet(nn.Module):
             prev_dim = hidden_dim
 
         layers.append(nn.Linear(prev_dim, 1))
-        layers.append(nn.Sigmoid())
 
         self.network = nn.Sequential(*layers)
     
