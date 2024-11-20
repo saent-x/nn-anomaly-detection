@@ -6,11 +6,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from torch import nn, optim
+from torch.xpu import device
+
 from src.utils.nn_config import NNConfig
 from torch.utils.data import  DataLoader
 import numpy as np
 from src.core.can_dataset import CANDataset
-from nn import NeuralNet
+from src.core.nn import NeuralNet
 import torch.onnx
 
 class CANDataTrainer:
@@ -23,7 +25,7 @@ class CANDataTrainer:
         self.logger = logging.getLogger(__name__)
         self.config = config
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.logger.info(f"Training on device: {self.device}")
+        self.logger.info(f"Training on device: {self.device}\n")
 
 
     def _load_and_preprocess_data(self, filepath: str) -> tuple[DataLoader, DataLoader]:
@@ -46,10 +48,10 @@ class CANDataTrainer:
             x_train_scaled = scaler.fit_transform(x_train)
             x_test_scaled = scaler.transform(x_test)
 
-            x_train_tensor = torch.FloatTensor(x_train_scaled)
-            y_train_tensor = torch.FloatTensor(y_train).unsqueeze(1)
-            x_test_tensor = torch.FloatTensor(x_test_scaled)
-            y_test_tensor = torch.FloatTensor(y_test).unsqueeze(1)
+            x_train_tensor = torch.tensor(x_train_scaled, dtype=torch.float32, device=self.device)
+            y_train_tensor = torch.tensor(y_train, dtype=torch.float32, device=self.device).unsqueeze(1)
+            x_test_tensor = torch.tensor(x_test_scaled, dtype=torch.float32, device=self.device)
+            y_test_tensor = torch.tensor(y_test, dtype=torch.float32, device=self.device).unsqueeze(1)
 
             train_dataset = CANDataset(x_train_tensor, y_train_tensor)
             test_dataset = CANDataset(x_test_tensor, y_test_tensor)
@@ -70,8 +72,9 @@ class CANDataTrainer:
 
             model = NeuralNet(input_dim=10).to(self.device)
 
-            pos_weight: float = self.class_0_count / self.class_1_count  # size of largest class / size of positive class (which is the lowest)
-            criterion = nn.BCEWithLogitsLoss(pos_weight=torch.FloatTensor([pos_weight], device=self.device))
+            neg_weight_multiplier = 1.2 # makes the negative class weight 20% more
+            pos_weight: float = neg_weight_multiplier * (self.class_0_count / self.class_1_count)  # size of largest class / size of positive class (which is the lowest)
+            criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight], dtype=torch.float32, device=self.device))
             optimizer = optim.Adam(model.parameters(), lr=self.config.learning_rate)
 
             for epoch in range(self.config.num_epochs):
@@ -120,7 +123,7 @@ class CANDataTrainer:
 
     def _export_to_onnx(self, model: nn.Module):
         try:
-            example_input = torch.randn(1, 10)
+            example_input = torch.randn(1, 10, dtype=torch.float32, device=self.device)
 
             torch.onnx.export(
                 model,
@@ -136,6 +139,7 @@ class CANDataTrainer:
                     'attack_probability': {0: 'batch_size'}
                 }
             )
+            print()
             self.logger.info(f"Model exported to {self.config.model_path}")
         except Exception as e:
             self.logger.error(f"ONNX export failed: {e}")
