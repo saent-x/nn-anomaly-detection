@@ -15,9 +15,9 @@ def process_can_message(can_message: Message, can_inf_eng: CanInferenceEngine) -
     prediction = can_inf_eng.predict(message_data)
 
     if prediction == 1:
-        print("Prediction (Binary): Anomaly Detected\n")
+        print(f"Prediction (Binary): Anomaly Detected\n")
     elif prediction == 0:
-        print("Prediction (Binary): No Anomaly Detected\n")
+        print(f"Prediction (Binary): No Anomaly Detected\n")
 
 
 def main() -> None:
