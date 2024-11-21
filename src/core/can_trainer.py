@@ -14,6 +14,7 @@ import numpy as np
 from src.core.can_dataset import CANDataset
 from src.core.nn import NeuralNet
 import torch.onnx
+import pickle
 
 class CANDataTrainer:
     def __init__(self, config: NNConfig):
@@ -44,9 +45,9 @@ class CANDataTrainer:
             self.class_0_count = np.count_nonzero(y_train == 0)
             self.class_1_count = np.count_nonzero(y_train == 1)
 
-            scaler = StandardScaler()
-            x_train_scaled = scaler.fit_transform(x_train)
-            x_test_scaled = scaler.transform(x_test)
+            self.scaler = StandardScaler()
+            x_train_scaled = self.scaler.fit_transform(x_train)
+            x_test_scaled = self.scaler.transform(x_test)
 
             x_train_tensor = torch.tensor(x_train_scaled, dtype=torch.float32, device=self.device)
             y_train_tensor = torch.tensor(y_train, dtype=torch.float32, device=self.device).unsqueeze(1)
@@ -121,7 +122,15 @@ class CANDataTrainer:
             self.logger.error(f"Training failed: {e}")
             return None
 
-    def _export_to_onnx(self, model: nn.Module):
+    def _save_scaler(self) -> None:
+        try:
+            with open('models/can_dataset_scaler.pkl', 'wb') as f:
+                # noinspection PyTypeChecker
+                pickle.dump(self.scaler, f)
+        except Exception as e:
+            self.logger.error(f"ONNX export failed: {e}")
+
+    def _export_to_onnx(self, model: nn.Module): # TODO: include the scaler and save it separately
         try:
             example_input = torch.randn(1, 10, dtype=torch.float32, device=self.device)
 
@@ -139,6 +148,8 @@ class CANDataTrainer:
                     'attack_probability': {0: 'batch_size'}
                 }
             )
+            self._save_scaler()
+
             print()
             self.logger.info(f"Model exported to {self.config.model_path}")
         except Exception as e:
