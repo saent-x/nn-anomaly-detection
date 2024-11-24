@@ -114,6 +114,7 @@ class CANDataTrainer:
                     f"Accuracy: {accuracy:.2f}%"
                 )
 
+            model.eval()
             self._export_to_onnx(model)
 
             return model
@@ -130,7 +131,7 @@ class CANDataTrainer:
         except Exception as e:
             self.logger.error(f"ONNX export failed: {e}")
 
-    def _export_to_onnx(self, model: nn.Module): # TODO: include the scaler and save it separately
+    def _export_to_onnx(self, model: nn.Module):
         try:
             example_input = torch.randn(1, 10, dtype=torch.float32, device=self.device)
 
