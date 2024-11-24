@@ -1,10 +1,12 @@
 FROM python:3.10
 
-ADD inference.py .
+COPY inference.py .
 
-ADD nn-ad-torch-venv/can_classifier.keras .
+COPY models/can_ad_model.onnx models/can_ad_model.onnx
+COPY models/can_dataset_scaler.pkl models/can_dataset_scaler.pkl
+COPY src src
 
-RUN pip install python-can pandas keras scikit-learn tensorflow
+RUN pip install tabulate scikit-learn numpy pandas python-can onnx onnxruntime
 
-CMD ["python", "./can_anomaly_detection.py"]
+CMD ["python", "./inference.py"]
 
