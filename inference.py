@@ -17,7 +17,7 @@ def process_can_message(can_message: Message, can_inf_eng: CanInferenceEngine) -
     if prediction == 1:
         print(f"Prediction (Binary): Anomaly Detected\n")
     elif prediction == 0:
-        print(f"Prediction (Binary): No Anomaly Detected\n")
+        print(f"Prediction (Binary): Attack Free\n")
 
 
 def main() -> None:
@@ -33,7 +33,7 @@ def main() -> None:
             message: Message = bus.recv(timeout=1.0)
 
             if message:
-                print(f"Received CAN message: {message.arbitration_id} {message.data}")
+                print(f"Received CAN message: ARBITRATION ID: {message.arbitration_id} DATA-FIELD: [{message.data.hex(sep=' ')}]")
                 process_can_message(message, can_inf_eng)
 
     except KeyboardInterrupt:
