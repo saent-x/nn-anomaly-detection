@@ -73,8 +73,7 @@ class CANDataTrainer:
 
             model = NeuralNet(input_dim=10).to(self.device)
 
-            neg_weight_multiplier = 1.2 # makes the negative class weight 20% more
-            pos_weight: float = neg_weight_multiplier * (self.class_0_count / self.class_1_count)  # size of largest class / size of positive class (which is the lowest)
+            pos_weight: float = self.class_0_count / self.class_1_count  # size of largest class / size of positive class (which is the lowest)
             criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight], dtype=torch.float32, device=self.device))
             optimizer = optim.Adam(model.parameters(), lr=self.config.learning_rate)
 
