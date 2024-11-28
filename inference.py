@@ -24,7 +24,7 @@ def main() -> None:
     can_interface = 'vcan0'
 
     bus = can.interface.Bus(can_interface, interface='socketcan')
-    can_inf_eng = CanInferenceEngine("models/can_ad_model.onnx")
+    can_inf_eng = CanInferenceEngine("models/can_ad_full_model.onnx")
 
     try:
         print("Listening on CAN interface...\n")
