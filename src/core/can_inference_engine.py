@@ -46,7 +46,6 @@ class CanInferenceEngine:
         return binary_predictions
 
     def parse_can_message(self, can_message: Message, previous_timestamp) -> tuple[pd.DataFrame, float]:
-
         arbitration_id = float(can_message.arbitration_id)
         data_fields = [float(byte) for byte in can_message.data[:8]]
 
