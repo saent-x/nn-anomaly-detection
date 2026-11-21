@@ -1,2 +1,7 @@
 nn-ad-torch-venv
 data
+# IDE and build artefacts
+.idea/
+__pycache__/
+*.pyc
+.venv/
